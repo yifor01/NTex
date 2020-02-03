@@ -10,7 +10,7 @@
 from ExchangeRate import NTex
 
 # 可用貨幣查詢 (中英對照)
-NTex().currencies()
+NTex()._currencies()
 
 # 今日所有匯率
 NTex().now_all()
