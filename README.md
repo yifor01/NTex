@@ -21,7 +21,7 @@ NTex().now_all()
 NTex().gold()
 
 # 目前黃金價格
-NTex().gold_()
+NTex().gold_now()
 
 ########################## 
 #單一匯率應用 (美金為例)
