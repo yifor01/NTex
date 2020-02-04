@@ -3,6 +3,7 @@
 ![image](https://img.shields.io/badge/python-3.7-blue.svg)
 
 各國貨幣匯率 :參考[比率網](https://www.findrate.tw/)匯率資料
+
 歷史黃金價格 : 參考[台灣銀行黃金存摺牌價](https://rate.bot.com.tw/gold/passbook?Lang=zh-TW)
 
 # Quick Start
@@ -18,6 +19,9 @@ NTex().now_all()
 
 # 歷史黃金價格
 NTex().gold()
+
+# 目前黃金價格
+NTex().gold_()
 
 ########################## 
 #單一匯率應用 (美金為例)
