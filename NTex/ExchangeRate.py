@@ -24,7 +24,7 @@ class NTex(object):
         soup = BeautifulSoup(r.text, "html.parser")
         return soup
     
-    # 台灣銀行黃金歷史價格(2019-now)
+    # 台灣銀行歷史營業時間黃金存摺牌價(2019-now)
     def gold(self):
         file = glob.glob(f'data\\GOLD_*.pkl')
         end = datetime.date(datetime.datetime.now().year,datetime.datetime.now().month+1,1) 
@@ -42,12 +42,23 @@ class NTex(object):
             if len(tmp.index):
                 gold_data = pd.concat([gold_data,tmp],axis=0)
             else:
-                print(f'{year}{month:02d} not data')
+                print(f'{start.year}-{start.month} no data')
             start = datetime.date(start.year+(start.month+1)//13,
                                   max( (start.month+1)%13,1),1)
         gold_data = gold_data.drop_duplicates().sort_values('日期').reset_index()[tmp.columns]
         gold_data.to_pickle(f'data/GOLD_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
         return gold_data
+    
+    # 目前台灣銀行黃金牌價
+    def gold_now(self):
+        url = 'https://rate.bot.com.tw/gold?Lang=zh-TW'
+        r = requests.get(url)
+        r.encoding = 'utf_8'
+        soup = BeautifulSoup(r.text, "html.parser")
+        print(soup.find(class_="pull-left trailer text-info").text.replace('\n','').replace("\r",''),'\n','--'*20)
+        print(soup.find("td",class_="rowSP_Ctrl_2_4_4 set-title-L-min-width-class").text.split("\r")[0])
+        print(f'{soup.find("td", class_="rowSP_Ctrl_0_2_2 highlight text-center set-title-R-min-width-class").text}: {soup.find_all("td", class_="text-right")[0].text}')
+        print(f'{soup.find("td", class_="rowSP_Ctrl_0_2_2 highlight text-center").text}: {soup.find_all("td", class_="text-right")[1].text}')
 
     def save_pkl(self,data):
         data.to_pickle(f'data/{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
