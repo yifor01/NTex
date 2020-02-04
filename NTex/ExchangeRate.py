@@ -1,4 +1,4 @@
-import requests,datetime
+import requests,datetime,glob,os
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
@@ -6,6 +6,9 @@ from tqdm import tqdm
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
 plt.rcParams['axes.unicode_minus'] = False
+
+if not os.path.exists('data'):
+    os.makedirs('data')
 
 class NTex(object):
     def __init__(self,currency="USD"):
@@ -19,6 +22,9 @@ class NTex(object):
         r.encoding = 'utf_8'
         soup = BeautifulSoup(r.text, "html.parser")
         return soup
+
+    def save_pkl(self,data):
+        data.to_pickle(f'data/{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
 
     # 抓取能用的幣別
     def check_cur(self):
@@ -107,15 +113,22 @@ class NTex(object):
         if not self.currencies:
             self.check_cur()
         if self.check:
-            self.his_data = self._year(2010)
-            for year in tqdm(range(2011,datetime.datetime.now().year+1)):
-                tmp_data = self._year(year)
-                self.his_data = pd.concat([self.his_data,tmp_data],axis=0)
-            self.his_data = self.his_data.reset_index().drop(columns='index')
-            self.his_data['year'] = self.his_data['日期'].apply(lambda x:x.year)
-            self.his_data['month'] = self.his_data['日期'].apply(lambda x:x.month)
-            self.his_data['day'] = self.his_data['日期'].apply(lambda x:x.day)
-            self.his_data['weekday'] = self.his_data['日期'].apply(lambda x:x.weekday()+1)
+            for file in glob.glob(f'data\\{self.currency}_*.pkl'):
+                if file!=f'data\\{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl':
+                    os.remove(file)
+                else:
+                    self.his_data = pd.read_pickle(f'data/{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
+            if self.his_data is None:
+                self.his_data = self._year(2010)
+                for year in tqdm(range(2011,datetime.datetime.now().year+1)):
+                    tmp_data = self._year(year)
+                    self.his_data = pd.concat([self.his_data,tmp_data],axis=0)
+                self.his_data = self.his_data.reset_index().drop(columns='index')
+                self.his_data['year'] = self.his_data['日期'].apply(lambda x:x.year)
+                self.his_data['month'] = self.his_data['日期'].apply(lambda x:x.month)
+                self.his_data['day'] = self.his_data['日期'].apply(lambda x:x.day)
+                self.his_data['weekday'] = self.his_data['日期'].apply(lambda x:x.weekday()+1)
+                self.save_pkl(self.his_data)
             return self.his_data.iloc[:,:5]
     
     # 單一匯率歷史趨勢圖 (指定起始年)
