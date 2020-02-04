@@ -2,14 +2,12 @@ import requests,datetime,glob,os
 import pandas as pd
 import numpy as np
 from bs4 import BeautifulSoup
-from tqdm import tqdm
 import matplotlib.pyplot as plt
 plt.rcParams['font.sans-serif'] = ['Microsoft JhengHei']
 plt.rcParams['axes.unicode_minus'] = False
 
 if not os.path.exists('data'):
     os.makedirs('data')
-
 
 class NTex(object):
     def __init__(self,currency="USD"):
@@ -40,7 +38,7 @@ class NTex(object):
             tmp = pd.read_csv(f'https://rate.bot.com.tw/gold/csv/{start.year}-{start.month:02d}/TWD/0')
             tmp['日期'] = pd.to_datetime(tmp['日期'].astype('int'),format='%Y%m%d')
             if len(tmp.index):
-                gold_data = pd.concat([gold_data,tmp],axis=0)
+                gold_data = pd.concat([gold_data,tmp],axis=0,sort=False)
             else:
                 print(f'{start.year}-{start.month} no data')
             start = datetime.date(start.year+(start.month+1)//13,
@@ -71,11 +69,16 @@ class NTex(object):
         if not self.check:
             print('Unavilable currency')
 
-    def _currencies(self):
+    def _currencies(self,show=True):
         soup = self._html("https://www.findrate.tw/currency.php")
-        currencies = pd.DataFrame({'zh':soup.find_all(class_="listbtns center")[0].find('li').text.split('\n')[:-1],
-                                   'en':[x.split('href="/')[1].split('/')[0] for x in str(soup.find_all(class_="listbtns center")[0].find('li')).split('\n')[:-1]]})
-        return currencies
+        en_list = [x.split('href="/')[1].split('/')[0] for x in str(soup.find_all(class_="listbtns center")[0].find('li')).split('\n')[:-1]]
+        zh_list = soup.find_all(class_="listbtns center")[0].find('li').text.split('\n')[:-1]
+        cur_dict = {}
+        for idx,en in enumerate(en_list):
+            cur_dict[en] = zh_list[idx]
+        self.cur_dict = cur_dict
+        if show: 
+            return self.cur_dict
 
     def _onepage(self,year,page):
         if not self.currencies:
@@ -114,7 +117,7 @@ class NTex(object):
             web_data = pd.DataFrame({'A' : []})
             for page in range(1,10):
                 page_data = self._onepage(year,page)
-                web_data = pd.concat([web_data,page_data],axis=0)
+                web_data = pd.concat([web_data,page_data],axis=0,sort=False)
             web_data['日期'] = pd.to_datetime(web_data['日期'])
             web_data = web_data.sort_values('日期').reset_index()[page_data.columns]
             web_data.iloc[:,1:] = web_data.iloc[:,1:].astype('float')
@@ -149,37 +152,45 @@ class NTex(object):
     def history(self): 
         if not self.currencies:
             self.check_cur()
+        end = datetime.datetime.now().year+1
         if self.check:
-            for file in glob.glob(f'data\\{self.currency}_*.pkl'):
-                if file!=f'data\\{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl':
-                    os.remove(file)
-                else:
-                    self.his_data = pd.read_pickle(f'data/{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
-            if self.his_data is None:
-                self.his_data = self._year(2010)
-                for year in tqdm(range(2011,datetime.datetime.now().year+1)):
-                    tmp_data = self._year(year)
-                    self.his_data = pd.concat([self.his_data,tmp_data],axis=0)
-                self.his_data = self.his_data.reset_index().drop(columns='index')
-                self.his_data['year'] = self.his_data['日期'].apply(lambda x:x.year)
-                self.his_data['month'] = self.his_data['日期'].apply(lambda x:x.month)
-                self.his_data['day'] = self.his_data['日期'].apply(lambda x:x.day)
-                self.his_data['weekday'] = self.his_data['日期'].apply(lambda x:x.weekday()+1)
-                self.save_pkl(self.his_data)
-            return self.his_data.iloc[:,:5]
+            file = glob.glob(os.path.join('data',f'{self.currency}_*.pkl' ))
+            if file[0] == os.path.join('data',f'{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl'):
+                self.his_data = pd.read_pickle(file[0])
+                start = end
+            elif file:
+                self.his_data = pd.read_pickle(file[0])
+                start = self.his_data['日期'].max().year
+                os.remove(file[0])
+            else:
+                start = 2010
+                self.his_data = self._year(start)
+
+            while start!=end:
+                print(start)
+                tmp_data = self._year(start)
+                self.his_data = pd.concat([self.his_data,tmp_data],axis=0,sort=False)
+                start+=1
+            self.his_data = self.his_data.drop_duplicates().reset_index().drop(columns='index')
+            self.save_pkl(self.his_data)
+            return self.his_data
     
     # 單一匯率歷史趨勢圖 (指定起始年)
     def plot(self,target_year=2010):
         if self.his_data is None:
-            print("Get Data First ...")
+            print(f"Get {self.currency} Data First ...")
             if not self.currencies:
                 self.check_cur()
             if self.check:
                 self.history()
-        target_df = self.his_data[self.his_data.year>=target_year]
-        plt.plot('日期','即期買入',data=target_df,label='即期買入')
-        plt.plot('日期','即期賣出',data=target_df,label='即期賣出')
-        plt.legend()
-        plt.title(f'{self.currency}匯率--最低買價:{target_df["即期賣出"].min()},最高賣價:{target_df["即期買入"].max()},最高報酬率:{round(target_df["即期買入"].max()/target_df["即期賣出"].min(),3)}')
-        plt.xticks(rotation=45)
-        plt.show()
+        self._currencies(show=False)
+        if pd.isnull(self.his_data['即期買入']).mean()<1:
+            target_df = self.his_data[self.his_data['日期']>=pd.Timestamp(f'{target_year}-01-01')]
+            plt.plot('日期','即期買入',data=target_df,label='即期買入')
+            plt.plot('日期','即期賣出',data=target_df,label='即期賣出')
+            plt.legend()
+            plt.title(f'{self.cur_dict.get(self.currency)}匯率--最低買價:{target_df["即期賣出"].min()},最高賣價:{target_df["即期買入"].max()},最高報酬率:{round(target_df["即期買入"].max()/target_df["即期賣出"].min(),3)}')
+            plt.xticks(rotation=45)
+            plt.show()
+        else:
+            print(f'{self.cur_dict.get(self.currency)} 無即期匯率資料')
