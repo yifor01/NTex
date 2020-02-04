@@ -10,6 +10,7 @@ plt.rcParams['axes.unicode_minus'] = False
 if not os.path.exists('data'):
     os.makedirs('data')
 
+
 class NTex(object):
     def __init__(self,currency="USD"):
         self.currency = currency
@@ -22,6 +23,31 @@ class NTex(object):
         r.encoding = 'utf_8'
         soup = BeautifulSoup(r.text, "html.parser")
         return soup
+    
+    # 台灣銀行黃金歷史價格(2019-now)
+    def gold(self):
+        file = glob.glob(f'data\\GOLD_*.pkl')
+        end = datetime.date(datetime.datetime.now().year,datetime.datetime.now().month+1,1) 
+        if file:
+            gold_data = pd.read_pickle(file[0])
+            start = datetime.date(gold_data['日期'].max().year,gold_data['日期'].max().month,1)
+            os.remove(file[0])
+        else:
+            gold_data = pd.DataFrame({'A' : []})
+            start = datetime.date(end.year-1,1,1)
+        while start!=end:
+            print(start)
+            tmp = pd.read_csv(f'https://rate.bot.com.tw/gold/csv/{start.year}-{start.month:02d}/TWD/0')
+            tmp['日期'] = pd.to_datetime(tmp['日期'].astype('int'),format='%Y%m%d')
+            if len(tmp.index):
+                gold_data = pd.concat([gold_data,tmp],axis=0)
+            else:
+                print(f'{year}{month:02d} not data')
+            start = datetime.date(start.year+(start.month+1)//13,
+                                  max( (start.month+1)%13,1),1)
+        gold_data = gold_data.drop_duplicates().sort_values('日期').reset_index()[tmp.columns]
+        gold_data.to_pickle(f'data/GOLD_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
+        return gold_data
 
     def save_pkl(self,data):
         data.to_pickle(f'data/{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
