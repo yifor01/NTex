@@ -155,7 +155,7 @@ class NTex(object):
         end = datetime.datetime.now().year+1
         if self.check:
             file = glob.glob(os.path.join('data',f'{self.currency}_*.pkl' ))
-            if file[0] == os.path.join('data',f'{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl'):
+            if file and (file[0] == os.path.join('data',f'{self.currency}_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')) :
                 self.his_data = pd.read_pickle(file[0])
                 start = end
             elif file:
