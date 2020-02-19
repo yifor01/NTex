@@ -135,6 +135,7 @@ class NTex(object):
                 rows.append([td.text.replace('\n', '').replace('\xa0', '').replace(' ','') for td in tr.find_all('td')])
             self.now_data = pd.DataFrame(data=rows, columns=columns)
             self.now_data[self.now_data=='--'] = np.nan
+            self.now_data = self.now_data.sort_values("即期賣出",ascending=True)
             return self.now_data
         else:
             print('no data')
@@ -159,6 +160,7 @@ class NTex(object):
                 self.his_data = pd.read_pickle(file[0])
                 start = end
             elif file:
+                print("Update Data ...")
                 self.his_data = pd.read_pickle(file[0])
                 start = self.his_data['日期'].max().year
                 os.remove(file[0])
@@ -166,12 +168,15 @@ class NTex(object):
                 start = 2010
                 self.his_data = self._year(start)
 
-            while start!=end:
-                print(start)
-                tmp_data = self._year(start)
-                self.his_data = pd.concat([self.his_data,tmp_data],axis=0,sort=False)
-                start+=1
-            self.his_data = self.his_data.drop_duplicates().reset_index().drop(columns='index')
+            try:
+                while start!=end:
+                    print(start)
+                    tmp_data = self._year(start)
+                    self.his_data = pd.concat([self.his_data,tmp_data],axis=0,sort=False)
+                    start+=1
+                self.his_data = self.his_data.drop_duplicates().reset_index().drop(columns='index')
+            except:
+                pass
             self.save_pkl(self.his_data)
             return self.his_data
     
