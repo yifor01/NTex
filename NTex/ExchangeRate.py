@@ -23,7 +23,7 @@ class NTex(object):
         return soup
     
     # 台灣銀行歷史營業時間黃金存摺牌價(2019-now)
-    def gold(self):
+    def gold(self,show=True):
         file = glob.glob(f'data\\GOLD_*.pkl')
         end = datetime.date(datetime.datetime.now().year,datetime.datetime.now().month+1,1) 
         if file:
@@ -45,6 +45,13 @@ class NTex(object):
                                   max( (start.month+1)%13,1),1)
         gold_data = gold_data.drop_duplicates().sort_values('日期').reset_index()[tmp.columns]
         gold_data.to_pickle(f'data/GOLD_{datetime.datetime.now().strftime("%Y%m%d")}.pkl')
+        if show:
+            plt.plot('日期','本行買入價格',data=gold_data,label='賣出價格')
+            plt.plot('日期','本行賣出價格',data=gold_data,label='買入價格')
+            plt.legend()
+            plt.title('黃金價格')
+            plt.xticks(rotation=45)
+            plt.show()
         return gold_data
     
     # 目前台灣銀行黃金牌價
