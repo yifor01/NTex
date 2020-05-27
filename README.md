@@ -17,7 +17,7 @@ NTex()._currencies()
 # 今日所有匯率
 NTex().now_all()
 
-# 歷史黃金價格
+# 歷史黃金價格 (含趨勢圖)
 NTex().gold()
 
 # 目前黃金價格
